@@ -23,26 +23,36 @@ class RadioService extends ChangeNotifier {
   NowPlayingInfo _nowPlaying = NowPlayingInfo.empty();
   bool _isPlaying = false;
   bool _isLoading = false;
+  String? _lastError;
   Timer? _metaTimer;
 
   NowPlayingInfo get nowPlaying => _nowPlaying;
   bool get isPlaying => _isPlaying;
   bool get isLoading => _isLoading;
+  String? get lastError => _lastError;
 
   RadioService() {
     _player.onPlayerStateChanged.listen((state) {
       _isPlaying = state == PlayerState.playing;
-      if (state == PlayerState.playing) _isLoading = false;
+      if (state == PlayerState.playing) {
+        _isLoading = false;
+        _lastError = null;
+      }
       if (state == PlayerState.stopped || state == PlayerState.completed) {
         _isLoading = false;
         _isPlaying = false;
       }
       notifyListeners();
     });
+
+    _player.onLog.listen((msg) {
+      debugPrint('AudioPlayer log: $msg');
+    });
   }
 
   Future<void> playUrl(String url) async {
     _isLoading = true;
+    _lastError = null;
     _nowPlaying = NowPlayingInfo.empty();
     notifyListeners();
     try {
@@ -51,8 +61,9 @@ class RadioService extends ChangeNotifier {
       await _player.play(UrlSource(url));
       _startMetaPolling();
     } catch (e) {
-      debugPrint('Play error: $e');
+      _lastError = e.toString();
       _isLoading = false;
+      _isPlaying = false;
       notifyListeners();
     }
   }
@@ -71,6 +82,7 @@ class RadioService extends ChangeNotifier {
     _nowPlaying = NowPlayingInfo.empty();
     _isLoading = false;
     _isPlaying = false;
+    _lastError = null;
     notifyListeners();
   }
 
@@ -82,8 +94,7 @@ class RadioService extends ChangeNotifier {
 
   Future<void> _fetchMeta() async {
     try {
-      final res = await http
-          .get(Uri.parse(metaUrl))
+      final res = await http.get(Uri.parse(metaUrl))
           .timeout(const Duration(seconds: 8));
       if (res.statusCode == 200 && res.body.trim().isNotEmpty) {
         final song = res.body.trim();
@@ -97,23 +108,18 @@ class RadioService extends ChangeNotifier {
           title = song;
         }
         String? artUrl;
-        if (artist != 'Urbano 106 FM') {
-          artUrl = await _fetchArt(artist, title);
-        }
+        if (artist != 'Urbano 106 FM') artUrl = await _fetchArt(artist, title);
         _nowPlaying = NowPlayingInfo(title: title, artist: artist, artUrl: artUrl);
         notifyListeners();
       }
-    } catch (e) {
-      debugPrint('Meta error: $e');
-    }
+    } catch (e) { debugPrint('Meta: $e'); }
   }
 
   Future<String?> _fetchArt(String artist, String title) async {
     try {
       final q = Uri.encodeComponent('$artist $title');
-      final res = await http
-          .get(Uri.parse(
-              'https://itunes.apple.com/search?term=$q&media=music&limit=1'))
+      final res = await http.get(Uri.parse(
+          'https://itunes.apple.com/search?term=$q&media=music&limit=1'))
           .timeout(const Duration(seconds: 6));
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
@@ -128,9 +134,5 @@ class RadioService extends ChangeNotifier {
   }
 
   @override
-  void dispose() {
-    _metaTimer?.cancel();
-    _player.dispose();
-    super.dispose();
-  }
+  void dispose() { _metaTimer?.cancel(); _player.dispose(); super.dispose(); }
 }
