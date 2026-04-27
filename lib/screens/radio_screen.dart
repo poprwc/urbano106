@@ -14,6 +14,7 @@ class RadioScreen extends StatelessWidget {
         final isPlaying = radio.isPlaying;
         final isLoading = radio.isLoading;
         final info = radio.nowPlaying;
+        final error = radio.lastError;
 
         return SafeArea(
           child: Center(
@@ -43,7 +44,20 @@ class RadioScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                if (isPlaying) ...[
+                if (error != null)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Text('Error: $error',
+                        style: const TextStyle(fontSize: 12, color: Colors.red),
+                        textAlign: TextAlign.center),
+                  )
+                else if (isPlaying) ...[
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     Container(width: 8, height: 8,
                         decoration: const BoxDecoration(
