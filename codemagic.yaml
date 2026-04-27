@@ -1,0 +1,68 @@
+workflows:
+  android-workflow:
+    name: Android Build
+    max_build_duration: 60
+    environment:
+      flutter: stable
+    scripts:
+      - name: Setup project
+        script: |
+          flutter create --project-name urbano106 --org com.radio --platforms android /tmp/fresh
+
+          # Copy source files
+          cp -r lib /tmp/fresh/
+          cp pubspec.yaml /tmp/fresh/pubspec.yaml
+
+          # Copy assets
+          mkdir -p /tmp/fresh/assets/images
+          cp "assets/images/logo.jpg" /tmp/fresh/assets/images/logo.jpg
+          cp "assets/images/WhatsApp.svg" /tmp/fresh/assets/images/WhatsApp.svg 2>/dev/null || true
+
+          # Copy Android config
+          cp "android/app/src/main/AndroidManifest.xml" /tmp/fresh/android/app/src/main/AndroidManifest.xml
+          cp "android/app/src/main/res/values/styles.xml" /tmp/fresh/android/app/src/main/res/values/styles.xml
+          cp "android/app/src/main/res/drawable/launch_background.xml" /tmp/fresh/android/app/src/main/res/drawable/launch_background.xml
+
+          mkdir -p /tmp/fresh/android/app/src/main/res/xml
+          cp "android/app/src/main/res/xml/network_security_config.xml" /tmp/fresh/android/app/src/main/res/xml/network_security_config.xml
+
+          # Copy MainActivity
+          mkdir -p /tmp/fresh/android/app/src/main/kotlin/com/radio/urbanocr
+          cp "android/app/src/main/kotlin/com/radio/urbanocr/MainActivity.kt" /tmp/fresh/android/app/src/main/kotlin/com/radio/urbanocr/MainActivity.kt
+
+          # Fix package name
+          find /tmp/fresh/android -type f \( -name "*.xml" -o -name "*.gradle" \) \
+            -exec sed -i 's/com\.example\.urbano106/com.radio.urbanocr/g' {} \;
+
+          cd /tmp/fresh
+          flutter pub get
+
+      - name: Generate icons
+        script: |
+          pip3 install Pillow
+          python3 << 'PYTHON'
+          from PIL import Image
+          import os
+          src = '/tmp/fresh/assets/images/logo.jpg'
+          img = Image.open(src).convert('RGBA')
+          sizes = {
+            'mipmap-mdpi': 48, 'mipmap-hdpi': 72,
+            'mipmap-xhdpi': 96, 'mipmap-xxhdpi': 144, 'mipmap-xxxhdpi': 192,
+          }
+          base = '/tmp/fresh/android/app/src/main/res'
+          for folder, size in sizes.items():
+            path = os.path.join(base, folder)
+            os.makedirs(path, exist_ok=True)
+            resized = img.resize((size, size), Image.LANCZOS)
+            resized.save(os.path.join(path, 'ic_launcher.png'))
+            resized.save(os.path.join(path, 'ic_launcher_round.png'))
+          print('Icons generated')
+          PYTHON
+
+      - name: Build APK
+        script: |
+          cd /tmp/fresh
+          flutter build apk --release
+
+    artifacts:
+      - /tmp/fresh/build/app/outputs/flutter-apk/app-release.apk
