@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:http/http.dart' as http;
+import 'package:audio_session/audio_session.dart';
 
 class NowPlayingInfo {
   final String title;
@@ -14,65 +16,70 @@ class NowPlayingInfo {
 }
 
 class RadioService extends ChangeNotifier {
-  static const String streamUrl =
-      'https://usa18.fastcast4u.com/proxy/rmoohhrw?mp=/1';
   static const String metaUrl =
       'https://usa18.fastcast4u.com/proxy/rmoohhrw/currentsong?sid=1';
+  static const String logoUrl =
+      'https://www.urbano106.com/wp-content/uploads/2025/06/logo-urbano-106-bc-nuevo-03-1.png';
 
   final AudioPlayer _player = AudioPlayer();
   NowPlayingInfo _nowPlaying = NowPlayingInfo.empty();
-  bool _isPlaying = false;
   bool _isLoading = false;
-  String? _lastError;
   Timer? _metaTimer;
+  String? _currentUrl;
 
   NowPlayingInfo get nowPlaying => _nowPlaying;
-  bool get isPlaying => _isPlaying;
+  bool get isPlaying => _player.playing;
   bool get isLoading => _isLoading;
-  String? get lastError => _lastError;
+  ProcessingState get processingState => _player.processingState;
 
-  RadioService() {
-    _player.onPlayerStateChanged.listen((state) {
-      _isPlaying = state == PlayerState.playing;
-      if (state == PlayerState.playing) {
-        _isLoading = false;
-        _lastError = null;
-      }
-      if (state == PlayerState.stopped || state == PlayerState.completed) {
-        _isLoading = false;
-        _isPlaying = false;
-      }
-      notifyListeners();
-    });
+  RadioService() { _init(); }
 
-    _player.onLog.listen((msg) {
-      debugPrint('AudioPlayer log: $msg');
-    });
+  Future<void> _init() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+      _player.playingStream.listen((_) => notifyListeners());
+      _player.processingStateStream.listen((s) {
+        if (s == ProcessingState.ready) _isLoading = false;
+        notifyListeners();
+      });
+    } catch (e) { debugPrint('Init: $e'); }
   }
 
   Future<void> playUrl(String url) async {
+    _currentUrl = url;
     _isLoading = true;
-    _lastError = null;
     _nowPlaying = NowPlayingInfo.empty();
     notifyListeners();
     try {
       await _player.stop();
       _metaTimer?.cancel();
-      await _player.play(UrlSource(url));
+      await _player.setAudioSource(
+        AudioSource.uri(
+          Uri.parse(url),
+          tag: MediaItem(
+            id: 'urbano106',
+            title: 'Urbano 106 FM',
+            artist: 'En Vivo',
+            album: 'Urbano 106 FM',
+            artUri: Uri.parse(logoUrl),
+          ),
+        ),
+      );
+      await _player.play();
       _startMetaPolling();
     } catch (e) {
-      _lastError = e.toString();
+      debugPrint('Play: $e');
       _isLoading = false;
-      _isPlaying = false;
       notifyListeners();
     }
   }
 
   Future<void> togglePlay() async {
-    if (_isPlaying) {
+    if (_player.playing) {
       await stop();
     } else {
-      await playUrl(streamUrl);
+      await playUrl(_currentUrl ?? 'http://usa18.fastcast4u.com:5040/stream');
     }
   }
 
@@ -81,15 +88,12 @@ class RadioService extends ChangeNotifier {
     _metaTimer?.cancel();
     _nowPlaying = NowPlayingInfo.empty();
     _isLoading = false;
-    _isPlaying = false;
-    _lastError = null;
     notifyListeners();
   }
 
   void _startMetaPolling() {
     _fetchMeta();
-    _metaTimer = Timer.periodic(
-        const Duration(seconds: 15), (_) => _fetchMeta());
+    _metaTimer = Timer.periodic(const Duration(seconds: 15), (_) => _fetchMeta());
   }
 
   Future<void> _fetchMeta() async {
