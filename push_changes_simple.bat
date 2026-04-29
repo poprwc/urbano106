@@ -3,7 +3,7 @@ setlocal
 
 cd /d "%~dp0"
 set "REPO_URL=https://github.com/poprwc/urbano106.git"
-set "BRANCH=work"
+set "DEFAULT_BRANCH=main"
 
 if not exist ".git" (
   echo [ERROR] Esta carpeta no tiene .git
@@ -18,6 +18,9 @@ if errorlevel 1 (
   git remote set-url origin "%REPO_URL%"
 )
 
+for /f "delims=" %%b in ('git branch --show-current 2^>nul') do set "BRANCH=%%b"
+if not defined BRANCH set "BRANCH=%DEFAULT_BRANCH%"
+
 git add .
 git diff --cached --quiet
 if errorlevel 1 (
@@ -28,7 +31,8 @@ if errorlevel 1 (
 
 git push -u origin "%BRANCH%"
 if errorlevel 1 (
-  echo [ERROR] No se pudo subir. Revisa login/permisos de GitHub.
+  echo [ERROR] No se pudo subir a la rama %BRANCH%.
+  echo [TIP] Prueba manual: git push -u origin %DEFAULT_BRANCH%
   pause
   exit /b 1
 )
