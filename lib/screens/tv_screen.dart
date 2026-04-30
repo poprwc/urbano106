@@ -22,7 +22,14 @@ class _TvScreenState extends State<TvScreen> {
   void initState() { super.initState(); _init(); }
 
   Future<void> _enterPiP() async {
-    try { await _pip.invokeMethod('enterPiP'); }
+    try {
+      final entered = await _pip.invokeMethod<bool>('enterPiP') ?? false;
+      if (!entered && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Modo flotante no disponible en este dispositivo')),
+        );
+      }
+    }
     catch (e) { debugPrint('PiP: $e'); }
   }
 
