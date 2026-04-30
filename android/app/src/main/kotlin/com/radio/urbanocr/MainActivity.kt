@@ -1,6 +1,7 @@
 package com.radio.urbanocr
 
 import android.app.PictureInPictureParams
+import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Rational
 import io.flutter.embedding.android.FlutterActivity
@@ -15,14 +16,24 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channel)
             .setMethodCallHandler { call, result ->
                 if (call.method == "enterPiP") {
-                    var entered = false
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val canUsePip =
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                            packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+
+                    if (!canUsePip) {
+                        result.success(false)
+                        return@setMethodCallHandler
+                    }
+
+                    try {
                         val params = PictureInPictureParams.Builder()
                             .setAspectRatio(Rational(16, 9))
                             .build()
-                        entered = enterPictureInPictureMode(params)
+                        val entered = enterPictureInPictureMode(params)
+                        result.success(entered)
+                    } catch (_: Exception) {
+                        result.success(false)
                     }
-                    result.success(entered)
                 } else {
                     result.notImplemented()
                 }
