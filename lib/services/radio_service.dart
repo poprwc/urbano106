@@ -66,17 +66,39 @@ class RadioService extends ChangeNotifier {
       await _player.stop();
       _metaTimer?.cancel();
 
-      await _player
-          .setUrl(
-            url,
-            headers: const {
-              'User-Agent': 'Mozilla/5.0 (Android) Urbano106/5.0',
-              'Icy-MetaData': '1',
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache',
-            },
-          )
-          .timeout(const Duration(seconds: 15));
+      final attempts = <Future<Duration?> Function()>[
+        () => _player.setUrl(url).timeout(const Duration(seconds: 12)),
+        () => _player.setUrl(
+              url,
+              headers: const {
+                'Icy-MetaData': '1',
+              },
+            ).timeout(const Duration(seconds: 12)),
+        () => _player.setUrl(
+              url,
+              headers: const {
+                'User-Agent': 'VLC/3.0.0 LibVLC/3.0.0',
+                'Icy-MetaData': '1',
+              },
+            ).timeout(const Duration(seconds: 12)),
+      ];
+
+      Object? lastErr;
+      var loaded = false;
+
+      for (final attempt in attempts) {
+        try {
+          await attempt();
+          loaded = true;
+          break;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+
+      if (!loaded) {
+        throw lastErr ?? Exception('No se pudo abrir el stream');
+      }
 
       await _player.play().timeout(const Duration(seconds: 10));
       _startMetaPolling();
