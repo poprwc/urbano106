@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 
 class NowPlayingInfo {
   final String title;
@@ -67,29 +66,19 @@ class RadioService extends ChangeNotifier {
       await _player.stop();
       _metaTimer?.cancel();
 
-      await _player.setAudioSource(
-        AudioSource.uri(
-          Uri.parse(url),
-          headers: const {
-            'User-Agent': 'Mozilla/5.0 (Android) Urbano106/5.0',
-            'Icy-MetaData': '1',
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache',
-          },
-          tag: MediaItem(
-            id: streamUrl,
-            album: 'Urbano 106 FM',
-            title: _nowPlaying.title,
-            artist: _nowPlaying.artist,
-            artUri: Uri.parse(
-              _nowPlaying.artUrl ??
-                  'https://www.urbano106.com/wp-content/uploads/2025/06/logo-urbano-106-bc-nuevo-03-1.png',
-            ),
-          ),
-        ),
-      );
+      await _player
+          .setUrl(
+            url,
+            headers: const {
+              'User-Agent': 'Mozilla/5.0 (Android) Urbano106/5.0',
+              'Icy-MetaData': '1',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
-      await _player.play();
+      await _player.play().timeout(const Duration(seconds: 10));
       _startMetaPolling();
     } catch (e) {
       _lastError = e.toString();
