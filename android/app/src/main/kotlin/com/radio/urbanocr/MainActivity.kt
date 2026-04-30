@@ -15,13 +15,14 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channel)
             .setMethodCallHandler { call, result ->
                 if (call.method == "enterPiP") {
+                    var entered = false
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         val params = PictureInPictureParams.Builder()
                             .setAspectRatio(Rational(16, 9))
                             .build()
-                        enterPictureInPictureMode(params)
+                        entered = enterPictureInPictureMode(params)
                     }
-                    result.success(null)
+                    result.success(entered)
                 } else {
                     result.notImplemented()
                 }
