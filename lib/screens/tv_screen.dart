@@ -26,6 +26,7 @@ class _TvScreenState extends State<TvScreen> {
 
   Future<void> _enterPiP() async {
     try {
+      await _vc?.play();
       final entered = await _pip.invokeMethod<bool>('enterPiP') ?? false;
       if (!entered && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
