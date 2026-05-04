@@ -1,24 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 
 import 'screens/main_scaffold.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  try {
-    await JustAudioBackground.init(
-      androidNotificationChannelId: 'com.radio.urbanocr.audio',
-      androidNotificationChannelName: 'Urbano 106 Audio',
-      androidNotificationOngoing: true,
-    );
-  } catch (e, st) {
-    debugPrint('JustAudioBackground init failed: $e');
-    debugPrintStack(stackTrace: st);
-  }
-
-  runApp(Urbano106App());
+  runApp(const Urbano106App());
 }
 
 class Urbano106App extends StatelessWidget {
