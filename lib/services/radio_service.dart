@@ -64,14 +64,7 @@ class RadioService extends ChangeNotifier {
       await _player.stop();
       _metaTimer?.cancel();
 
-      await _player.play(
-        UrlSource(
-          url,
-          headers: const {
-            'Icy-MetaData': '1',
-          },
-        ),
-      );
+      await _player.play(UrlSource(url));
 
       _startMetaPolling();
     } catch (e) {
