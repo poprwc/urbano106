@@ -2,18 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const Urbano106App());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class Urbano106App extends StatelessWidget {
+  const Urbano106App({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Urbano 106',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: Colors.black,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.black,
+          elevation: 0,
+        ),
       ),
       home: const RadioPlayerScreen(),
     );
@@ -30,7 +36,10 @@ class RadioPlayerScreen extends StatefulWidget {
 class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   late AudioPlayer _player;
   bool isPlaying = false;
-  final String url = 'TU_URL_DE_STREAMING_AQUI'; // Asegúrate de que sea la correcta
+  
+  // --- IMPORTANTE: Reemplaza esta URL con tu enlace de streaming real ---
+  // Ejemplo: 'https://sh.onlineradio.pro/8024/stream'
+  final String url = 'https://sh.onlineradio.pro/8024/stream'; 
 
   @override
   void initState() {
@@ -41,40 +50,92 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   @override
   void dispose() {
     _player.dispose();
-    super.initState();
+    super.dispose();
   }
 
   Future<void> _togglePlay() async {
-    if (isPlaying) {
-      await _player.stop();
-    } else {
-      // CORRECCIÓN AQUÍ: Se eliminó el parámetro 'headers' incompatible
-      await _player.play(UrlSource(url));
+    try {
+      if (isPlaying) {
+        await _player.stop();
+      } else {
+        // SOLUCIÓN AL ERROR DE CODEMAGIC:
+        // En audioplayers 6.6.0 ya no se usa el parámetro 'headers'
+        await _player.play(UrlSource(url)); 
+      }
+      setState(() {
+        isPlaying = !isPlaying;
+      });
+    } catch (e) {
+      debugPrint("Error al reproducir: $e");
     }
-    setState(() {
-      isPlaying = !isPlaying;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Urbano 106'),
+        title: const Text(
+          'URBANO 106', 
+          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.yellow)
+        ),
+        centerTitle: true,
       ),
-      body: Center(
+      body: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.black, Color(0xFF1A1A1A)],
+          ),
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Escuchando Urbano 106',
-              style: TextStyle(fontSize: 20),
+            // Representación visual de la radio
+            Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black,
+                border: Border.all(color: Colors.yellow, width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.yellow.withOpacity(0.2),
+                    blurRadius: 30,
+                    spreadRadius: 10,
+                  )
+                ],
+              ),
+              child: const Icon(Icons.radio, size: 100, color: Colors.yellow),
             ),
-            const SizedBox(height: 20),
-            IconButton(
-              iconSize: 64,
-              icon: Icon(isPlaying ? Icons.stop_circle : Icons.play_circle_fill),
-              onPressed: _togglePlay,
+            const SizedBox(height: 50),
+            const Text(
+              'ESCUCHANDO EN VIVO',
+              style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.w300, letterSpacing: 1.5),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Urbano 106 FM',
+              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            const SizedBox(height: 60),
+            // Botón de Play / Stop
+            GestureDetector(
+              onTap: _togglePlay,
+              child: Container(
+                padding: const EdgeInsets.all(25),
+                decoration: const BoxDecoration(
+                  color: Colors.yellow,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isPlaying ? Icons.stop : Icons.play_arrow,
+                  size: 60,
+                  color: Colors.black,
+                ),
+              ),
             ),
           ],
         ),
