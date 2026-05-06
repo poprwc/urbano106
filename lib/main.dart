@@ -1,178 +1,84 @@
-import 'dart:async';
-import 'dart:convert';
-
+import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 
-class NowPlayingInfo {
-  final String title;
-  final String artist;
-  final String? artUrl;
-
-  const NowPlayingInfo({
-    required this.title,
-    required this.artist,
-    this.artUrl,
-  });
-
-  factory NowPlayingInfo.empty() =>
-      const NowPlayingInfo(title: 'Urbano 106 FM', artist: 'En Vivo');
+void main() {
+  runApp(const MyApp());
 }
 
-class RadioService extends ChangeNotifier {
-  static const String streamUrl =
-      'https://usa18.fastcast4u.com/proxy/rmoohhrw?mp=/1';
-  static const String metaUrl =
-      'https://usa18.fastcast4u.com/proxy/rmoohhrw/currentsong?sid=1';
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
-  final AudioPlayer _player = AudioPlayer();
-  NowPlayingInfo _nowPlaying = NowPlayingInfo.empty();
-  bool _isPlaying = false;
-  bool _isLoading = false;
-  String? _lastError;
-  Timer? _metaTimer;
-
-  NowPlayingInfo get nowPlaying => _nowPlaying;
-  bool get isPlaying => _isPlaying;
-  bool get isLoading => _isLoading;
-  String? get lastError => _lastError;
-
-  RadioService() {
-    _player.setPlayerMode(PlayerMode.mediaPlayer);
-
-    _player.onPlayerStateChanged.listen((state) {
-      _isPlaying = state == PlayerState.playing;
-      if (_isPlaying) {
-        _isLoading = false;
-        _lastError = null;
-      }
-      if (state == PlayerState.stopped || state == PlayerState.completed) {
-        _isLoading = false;
-        _isPlaying = false;
-      }
-      notifyListeners();
-    });
-  }
-
-  Future<void> playUrl(String url) async {
-    _isLoading = true;
-    _lastError = null;
-    notifyListeners();
-
-    try {
-      await _player.stop();
-      _metaTimer?.cancel();
-
-      await _player.play(
-        UrlSource(
-          url,
-          headers: const {
-            'Icy-MetaData': '1',
-          },
-        ),
-      );
-
-      _startMetaPolling();
-    } catch (e) {
-      _lastError = e.toString();
-      _isLoading = false;
-      _isPlaying = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> togglePlay() async {
-    if (_isPlaying) {
-      await stop();
-    } else {
-      await playUrl(streamUrl);
-    }
-  }
-
-  Future<void> stop() async {
-    await _player.stop();
-    _metaTimer?.cancel();
-    _nowPlaying = NowPlayingInfo.empty();
-    _isLoading = false;
-    _isPlaying = false;
-    _lastError = null;
-    notifyListeners();
-  }
-
-  void _startMetaPolling() {
-    _fetchMeta();
-    _metaTimer = Timer.periodic(
-      const Duration(seconds: 12),
-      (_) => _fetchMeta(),
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Urbano 106',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const RadioPlayerScreen(),
     );
   }
+}
 
-  Future<void> _fetchMeta() async {
-    try {
-      final res = await http
-          .get(Uri.parse(metaUrl))
-          .timeout(const Duration(seconds: 8));
+class RadioPlayerScreen extends StatefulWidget {
+  const RadioPlayerScreen({super.key});
 
-      if (res.statusCode == 200 && res.body.trim().isNotEmpty) {
-        final song = res.body.trim();
-        String artist = 'Urbano 106 FM';
-        String title = 'En Vivo';
+  @override
+  State<RadioPlayerScreen> createState() => _RadioPlayerScreenState();
+}
 
-        if (song.contains(' - ')) {
-          final parts = song.split(' - ');
-          artist = parts[0].trim();
-          title = parts.sublist(1).join(' - ').trim();
-        } else {
-          title = song;
-        }
+class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
+  late AudioPlayer _player;
+  bool isPlaying = false;
+  final String url = 'TU_URL_DE_STREAMING_AQUI'; // Asegúrate de que sea la correcta
 
-        String? artUrl;
-        if (artist != 'Urbano 106 FM') {
-          artUrl = await _fetchArt(artist, title);
-        }
-
-        _nowPlaying = NowPlayingInfo(
-          title: title,
-          artist: artist,
-          artUrl: artUrl,
-        );
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Meta: $e');
-    }
-  }
-
-  Future<String?> _fetchArt(String artist, String title) async {
-    try {
-      final q = Uri.encodeComponent('$artist $title');
-      final res = await http
-          .get(
-            Uri.parse(
-              'https://itunes.apple.com/search?term=$q&media=music&limit=1',
-            ),
-          )
-          .timeout(const Duration(seconds: 6));
-
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        final results = data['results'] as List?;
-
-        if (results != null && results.isNotEmpty) {
-          return (results[0]['artworkUrl100'] as String?)
-              ?.replaceAll('100x100bb', '300x300bb');
-        }
-      }
-    } catch (_) {}
-
-    return null;
+  @override
+  void initState() {
+    super.initState();
+    _player = AudioPlayer();
   }
 
   @override
   void dispose() {
-    _metaTimer?.cancel();
     _player.dispose();
-    super.dispose();
+    super.initState();
+  }
+
+  Future<void> _togglePlay() async {
+    if (isPlaying) {
+      await _player.stop();
+    } else {
+      // CORRECCIÓN AQUÍ: Se eliminó el parámetro 'headers' incompatible
+      await _player.play(UrlSource(url));
+    }
+    setState(() {
+      isPlaying = !isPlaying;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Urbano 106'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Escuchando Urbano 106',
+              style: TextStyle(fontSize: 20),
+            ),
+            const SizedBox(height: 20),
+            IconButton(
+              iconSize: 64,
+              icon: Icon(isPlaying ? Icons.stop_circle : Icons.play_circle_fill),
+              onPressed: _togglePlay,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
