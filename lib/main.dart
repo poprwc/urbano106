@@ -45,14 +45,15 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     _player.setReleaseMode(ReleaseMode.stop);
     _player.setPlayerMode(PlayerMode.mediaPlayer);
     
-    // CORRECCIÓN DEFINITIVA DE NOMBRES PARA v7.1.1:
+    // CORRECCIÓN RADICAL: Eliminamos todos los 'const' internos
+    // Esto evita errores si la versión de la librería cambia los constructores
     _player.setAudioContext(AudioContext(
-      android: const AudioContextAndroid(
-        contentType: AndroidContentType.music, // Antes era AudioContentType
-        usageType: AndroidUsageType.media,     // Antes era AudioUsageType
-        audioFocus: AndroidAudioFocus.gain,    // Antes era AudioAudioFocus
+      android: AudioContextAndroid(
+        contentType: AndroidContentType.music,
+        usageType: AndroidUsageType.media,
+        audioFocus: AndroidAudioFocus.gain,
       ),
-      iOS: const AudioContextIOS(
+      iOS: AudioContextIOS(
         category: AVAudioSessionCategory.playback,
       ),
     ));
