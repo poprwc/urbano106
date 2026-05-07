@@ -45,16 +45,14 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     _player.setReleaseMode(ReleaseMode.stop);
     _player.setPlayerMode(PlayerMode.mediaPlayer);
     
-    // CORRECCIÓN PARA VERSIÓN 7.1.1:
-    // 1. Se eliminó 'isContentMusic' (ya no existe).
-    // 2. Se quitaron los 'const' de los sub-constructores para evitar el error de compilación.
+    // CORRECCIÓN DEFINITIVA DE NOMBRES PARA v7.1.1:
     _player.setAudioContext(AudioContext(
-      android: AudioContextAndroid(
-        contentType: AudioContentType.music,
-        usageType: AudioUsageType.media,
-        audioFocus: AudioAudioFocus.gain,
+      android: const AudioContextAndroid(
+        contentType: AndroidContentType.music, // Antes era AudioContentType
+        usageType: AndroidUsageType.media,     // Antes era AudioUsageType
+        audioFocus: AndroidAudioFocus.gain,    // Antes era AudioAudioFocus
       ),
-      iOS: AudioContextIOS(
+      iOS: const AudioContextIOS(
         category: AVAudioSessionCategory.playback,
       ),
     ));
@@ -87,7 +85,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
       }
     } catch (e) {
       setState(() => isLoading = false);
-      print("Error de audio: $e");
+      debugPrint("Error de audio: $e");
     }
   }
 
