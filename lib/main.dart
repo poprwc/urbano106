@@ -34,7 +34,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   bool isPlaying = false;
   bool isLoading = false;
   
-  // Usando el stream HTTPS que es más estable
+  // Stream HTTPS de Urbano 106
   final String url = 'https://usa18.fastcast4u.com/proxy/rmoohhrw?mp=/1';
 
   @override
@@ -42,19 +42,19 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     super.initState();
     _player = AudioPlayer();
     
-    // Configuración del reproductor
     _player.setReleaseMode(ReleaseMode.stop);
     _player.setPlayerMode(PlayerMode.mediaPlayer);
     
-    // CORRECCIÓN: Se eliminó el 'const' que causaba el error de compilación
+    // CORRECCIÓN PARA VERSIÓN 7.1.1:
+    // 1. Se eliminó 'isContentMusic' (ya no existe).
+    // 2. Se quitaron los 'const' de los sub-constructores para evitar el error de compilación.
     _player.setAudioContext(AudioContext(
-      android: const AudioContextAndroid(
-        isContentMusic: true,
-        usageType: AndroidUsageType.media,
-        contentType: AndroidContentType.music,
-        audioFocus: AndroidAudioFocus.gain,
+      android: AudioContextAndroid(
+        contentType: AudioContentType.music,
+        usageType: AudioUsageType.media,
+        audioFocus: AudioAudioFocus.gain,
       ),
-      iOS: const AudioContextIOS(
+      iOS: AudioContextIOS(
         category: AVAudioSessionCategory.playback,
       ),
     ));
@@ -68,7 +68,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 
   Future<void> _togglePlay() async {
     if (isLoading) return;
-
     setState(() => isLoading = true);
 
     try {
@@ -79,7 +78,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
           isLoading = false;
         });
       } else {
-        // Cargar fuente y reproducir
         await _player.setSource(UrlSource(url));
         await _player.resume();
         setState(() {
@@ -89,9 +87,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
       }
     } catch (e) {
       setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+      print("Error de audio: $e");
     }
   }
 
@@ -104,7 +100,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.black, Color(0xFF121212)],
+            colors: [Colors.black, Color(0xFF1A1A1A)],
           ),
         ),
         child: Column(
@@ -114,59 +110,59 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
               "URBANO 106",
               style: TextStyle(
                 color: Colors.yellow,
-                fontSize: 32,
+                fontSize: 35,
                 fontWeight: FontWeight.bold,
-                letterSpacing: 4,
+                letterSpacing: 6,
               ),
             ),
-            const SizedBox(height: 80),
+            const SizedBox(height: 100),
             
-            // Botón de Play con estado de carga
             GestureDetector(
               onTap: _togglePlay,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   Container(
-                    width: 140,
-                    height: 140,
+                    width: 150,
+                    height: 150,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.yellow,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.yellow.withOpacity(0.3),
-                          blurRadius: 25,
-                          spreadRadius: 5,
+                          color: Colors.yellow.withOpacity(0.4),
+                          blurRadius: 30,
+                          spreadRadius: 2,
                         )
                       ],
                     ),
                     child: Icon(
                       isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded,
-                      size: 90,
+                      size: 100,
                       color: Colors.black,
                     ),
                   ),
                   if (isLoading)
                     const SizedBox(
-                      width: 140,
-                      height: 140,
+                      width: 150,
+                      height: 150,
                       child: CircularProgressIndicator(
                         color: Colors.white,
-                        strokeWidth: 6,
+                        strokeWidth: 8,
                       ),
                     ),
                 ],
               ),
             ),
             
-            const SizedBox(height: 40),
+            const SizedBox(height: 50),
             Text(
-              isPlaying ? "REPRODUCIENDO" : "RADIO EN PAUSA",
+              isPlaying ? "AL AIRE" : "RADIO EN PAUSA",
               style: TextStyle(
-                color: isPlaying ? Colors.yellow : Colors.white54,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
+                color: isPlaying ? Colors.yellow : Colors.white24,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
               ),
             ),
           ],
