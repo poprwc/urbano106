@@ -39,7 +39,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   
   // --- IMPORTANTE: Reemplaza esta URL con tu enlace de streaming real ---
   // Ejemplo: 'https://sh.onlineradio.pro/8024/stream'
-  final String url = 'http://usa18.fastcast4u.com:5040/'; 
+  final String url = 'http://usa18.fastcast4u.com:5040/stream'; 
 
   @override
   void initState() {
