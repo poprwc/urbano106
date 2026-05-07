@@ -16,10 +16,6 @@ class Urbano106App extends StatelessWidget {
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: Colors.black,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.black,
-          elevation: 0,
-        ),
       ),
       home: const RadioPlayerScreen(),
     );
@@ -37,14 +33,24 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   late AudioPlayer _player;
   bool isPlaying = false;
   
-  // --- IMPORTANTE: Reemplaza esta URL con tu enlace de streaming real ---
-  // Ejemplo: 'https://sh.onlineradio.pro/8024/stream'
-  final String url = 'http://usa18.fastcast4u.com:5040/stream'; 
+  // Lista de streams para probar
+  final List<Map<String, String>> streams = [
+    {'label': 'Stream A', 'url': 'http://usa18.fastcast4u.com:5040/stream'},
+    {'label': 'Stream B', 'url': 'http://usa18.fastcast4u.com:5040/;'},
+    {'label': 'Stream C', 'url': 'http://usa18.fastcast4u.com:5040/;stream'},
+    {'label': 'Stream D', 'url': 'http://66.70.249.70:5040/stream'},
+    {'label': 'Stream E', 'url': 'http://66.70.249.70:5040'},
+    {'label': 'Stream F (HTTPS)', 'url': 'https://usa18.fastcast4u.com/proxy/rmoohhrw?mp=/1'},
+    {'label': 'Stream G', 'url': 'http://usa18.fastcast4u.com/proxy/rmoohhrw?mp=/1'},
+  ];
+
+  late Map<String, String> currentStream;
 
   @override
   void initState() {
     super.initState();
     _player = AudioPlayer();
+    currentStream = streams[0]; // Empezamos con el A
   }
 
   @override
@@ -57,16 +63,15 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     try {
       if (isPlaying) {
         await _player.stop();
+        setState(() => isPlaying = false);
       } else {
-        // SOLUCIÓN AL ERROR DE CODEMAGIC:
-        // En audioplayers 6.6.0 ya no se usa el parámetro 'headers'
-        await _player.play(UrlSource(url)); 
+        await _player.play(UrlSource(currentStream['url']!));
+        setState(() => isPlaying = true);
       }
-      setState(() {
-        isPlaying = !isPlaying;
-      });
     } catch (e) {
-      debugPrint("Error al reproducir: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -74,69 +79,62 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'URBANO 106', 
-          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.yellow)
-        ),
+        title: const Text('URBANO 106', style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold)),
         centerTitle: true,
+        backgroundColor: Colors.black,
       ),
-      body: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.black, Color(0xFF1A1A1A)],
-          ),
-        ),
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Representación visual de la radio
+            const Icon(Icons.radio, size: 80, color: Colors.yellow),
+            const SizedBox(height: 20),
+            
+            // Selector de Stream
             Container(
-              width: 220,
-              height: 220,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.black,
-                border: Border.all(color: Colors.yellow, width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.yellow.withOpacity(0.2),
-                    blurRadius: 30,
-                    spreadRadius: 10,
-                  )
-                ],
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.yellow),
               ),
-              child: const Icon(Icons.radio, size: 100, color: Colors.yellow),
+              child: DropdownButton<Map<String, String>>(
+                value: currentStream,
+                dropdownColor: Colors.grey[900],
+                underline: const SizedBox(),
+                items: streams.map((stream) {
+                  return DropdownMenuItem(
+                    value: stream,
+                    child: Text(stream['label']!, style: const TextStyle(color: Colors.white)),
+                  );
+                }).toList(),
+                onChanged: (value) async {
+                  if (isPlaying) await _player.stop();
+                  setState(() {
+                    currentStream = value!;
+                    isPlaying = false;
+                  });
+                },
+              ),
             ),
-            const SizedBox(height: 50),
-            const Text(
-              'ESCUCHANDO EN VIVO',
-              style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.w300, letterSpacing: 1.5),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Urbano 106 FM',
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
-            ),
-            const SizedBox(height: 60),
-            // Botón de Play / Stop
+            
+            const SizedBox(height: 40),
+            Text(currentStream['url']!, 
+                 textAlign: TextAlign: TextAlign.center, 
+                 style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            const SizedBox(height: 40),
+
+            // Botón Play
             GestureDetector(
               onTap: _togglePlay,
-              child: Container(
-                padding: const EdgeInsets.all(25),
-                decoration: const BoxDecoration(
-                  color: Colors.yellow,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isPlaying ? Icons.stop : Icons.play_arrow,
-                  size: 60,
-                  color: Colors.black,
-                ),
+              child: CircleAvatar(
+                radius: 50,
+                backgroundColor: Colors.yellow,
+                child: Icon(isPlaying ? Icons.stop : Icons.play_arrow, size: 50, color: Colors.black),
               ),
             ),
+            const SizedBox(height: 20),
+            Text(isPlaying ? 'REPRODUCIENDO...' : 'PAUSADO', 
+                 style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
