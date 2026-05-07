@@ -32,8 +32,8 @@ class RadioPlayerScreen extends StatefulWidget {
 class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   late AudioPlayer _player;
   bool isPlaying = false;
+  bool isLoading = false;
   
-  // Lista de streams para probar
   final List<Map<String, String>> streams = [
     {'label': 'Stream A', 'url': 'http://usa18.fastcast4u.com:5040/stream'},
     {'label': 'Stream B', 'url': 'http://usa18.fastcast4u.com:5040/;'},
@@ -50,7 +50,10 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   void initState() {
     super.initState();
     _player = AudioPlayer();
-    currentStream = streams[0]; // Empezamos con el A
+    currentStream = streams[0];
+
+    // Escuchar errores del reproductor
+    _player.onLog.listen((msg) => print('AudioPlayer Log: $msg'));
   }
 
   @override
@@ -60,15 +63,27 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   }
 
   Future<void> _togglePlay() async {
+    if (isLoading) return;
+
+    setState(() => isLoading = true);
+
     try {
       if (isPlaying) {
         await _player.stop();
-        setState(() => isPlaying = false);
+        setState(() {
+          isPlaying = false;
+          isLoading = false;
+        });
       } else {
+        // En v6.6.0 solo pasamos el UrlSource
         await _player.play(UrlSource(currentStream['url']!));
-        setState(() => isPlaying = true);
+        setState(() {
+          isPlaying = true;
+          isLoading = false;
+        });
       }
     } catch (e) {
+      setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
@@ -79,62 +94,89 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('URBANO 106', style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold)),
+        title: const Text('URBANO 106', style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold, letterSpacing: 2)),
         centerTitle: true,
         backgroundColor: Colors.black,
       ),
-      body: Center(
+      body: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.radio, size: 80, color: Colors.yellow),
-            const SizedBox(height: 20),
+            const Icon(Icons.radio_outlined, size: 100, color: Colors.yellow),
+            const SizedBox(height: 30),
             
             // Selector de Stream
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 15),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.yellow),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.yellow.withOpacity(0.5)),
               ),
-              child: DropdownButton<Map<String, String>>(
-                value: currentStream,
-                dropdownColor: Colors.grey[900],
-                underline: const SizedBox(),
-                items: streams.map((stream) {
-                  return DropdownMenuItem(
-                    value: stream,
-                    child: Text(stream['label']!, style: const TextStyle(color: Colors.white)),
-                  );
-                }).toList(),
-                onChanged: (value) async {
-                  if (isPlaying) await _player.stop();
-                  setState(() {
-                    currentStream = value!;
-                    isPlaying = false;
-                  });
-                },
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<Map<String, String>>(
+                  value: currentStream,
+                  isExpanded: true,
+                  dropdownColor: Colors.grey[900],
+                  items: streams.map((s) => DropdownMenuItem(value: s, child: Text(s['label']!))).toList(),
+                  onChanged: (val) async {
+                    if (isPlaying) await _player.stop();
+                    setState(() {
+                      currentStream = val!;
+                      isPlaying = false;
+                    });
+                  },
+                ),
               ),
             ),
             
-            const SizedBox(height: 40),
-            Text(currentStream['url']!, 
-                 textAlign: TextAlign: TextAlign.center, 
-                 style: const TextStyle(fontSize: 10, color: Colors.grey)),
-            const SizedBox(height: 40),
+            const SizedBox(height: 10),
+            Text(currentStream['url']!, style: const TextStyle(fontSize: 9, color: Colors.grey)),
+            
+            const SizedBox(height: 50),
 
-            // Botón Play
+            // Botón de Play
             GestureDetector(
               onTap: _togglePlay,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundColor: Colors.yellow,
-                child: Icon(isPlaying ? Icons.stop : Icons.play_arrow, size: 50, color: Colors.black),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.yellow,
+                      boxShadow: [
+                        BoxShadow(color: Colors.yellow.withOpacity(0.3), blurRadius: 20, spreadRadius: 5)
+                      ]
+                    ),
+                    child: Icon(
+                      isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                      size: 80,
+                      color: Colors.black,
+                    ),
+                  ),
+                  if (isLoading)
+                    const SizedBox(
+                      width: 120,
+                      height: 120,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 5),
+                    ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-            Text(isPlaying ? 'REPRODUCIENDO...' : 'PAUSADO', 
-                 style: const TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold)),
+            
+            const SizedBox(height: 30),
+            Text(
+              isPlaying ? "REPRODUCIENDO AHORA" : "RADIO PAUSADA",
+              style: TextStyle(
+                color: isPlaying ? Colors.greenAccent : Colors.grey,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2
+              ),
+            ),
           ],
         ),
       ),
