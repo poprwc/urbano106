@@ -13,10 +13,7 @@ class Urbano106App extends StatelessWidget {
     return MaterialApp(
       title: 'Urbano 106',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black,
-      ),
+      theme: ThemeData(brightness: Brightness.dark, scaffoldBackgroundColor: Colors.black),
       home: const RadioPlayerScreen(),
     );
   }
@@ -34,26 +31,30 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   bool isPlaying = false;
   bool isLoading = false;
   
-  final List<Map<String, String>> streams = [
-    {'label': 'Stream A', 'url': 'http://usa18.fastcast4u.com:5040/stream'},
-    {'label': 'Stream B', 'url': 'http://usa18.fastcast4u.com:5040/;'},
-    {'label': 'Stream C', 'url': 'http://usa18.fastcast4u.com:5040/;stream'},
-    {'label': 'Stream D', 'url': 'http://66.70.249.70:5040/stream'},
-    {'label': 'Stream E', 'url': 'http://66.70.249.70:5040'},
-    {'label': 'Stream F (HTTPS)', 'url': 'https://usa18.fastcast4u.com/proxy/rmoohhrw?mp=/1'},
-    {'label': 'Stream G', 'url': 'http://usa18.fastcast4u.com/proxy/rmoohhrw?mp=/1'},
-  ];
-
-  late Map<String, String> currentStream;
+  // Usaremos el Stream F (HTTPS) como predeterminado por ser el más seguro
+  String url = 'https://usa18.fastcast4u.com/proxy/rmoohhrw?mp=/1';
 
   @override
   void initState() {
     super.initState();
     _player = AudioPlayer();
-    currentStream = streams[0];
-
-    // Escuchar errores del reproductor
-    _player.onLog.listen((msg) => print('AudioPlayer Log: $msg'));
+    
+    // CONFIGURACIÓN CRÍTICA PARA ANDROID
+    _player.setReleaseMode(ReleaseMode.stop);
+    _player.setPlayerMode(PlayerMode.mediaPlayer); // Optimizado para streams largos
+    
+    // Configurar el contexto de audio para que Android sepa que es música
+    _player.setAudioContext(const AudioContext(
+      android: AudioContextAndroid(
+        isContentMusic: true,
+        usageType: AndroidUsageType.media,
+        contentType: AndroidContentType.music,
+        audioFocus: AndroidAudioFocus.gain,
+      ),
+      iOS: AudioContextIOS(
+        category: AVAudioSessionCategory.playback,
+      ),
+    ));
   }
 
   @override
@@ -64,7 +65,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 
   Future<void> _togglePlay() async {
     if (isLoading) return;
-
     setState(() => isLoading = true);
 
     try {
@@ -75,8 +75,10 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
           isLoading = false;
         });
       } else {
-        // En v6.6.0 solo pasamos el UrlSource
-        await _player.play(UrlSource(currentStream['url']!));
+        // PASO A PASO: Primero set, luego play
+        await _player.setSource(UrlSource(url));
+        await _player.resume();
+        
         setState(() {
           isPlaying = true;
           isLoading = false;
@@ -84,8 +86,9 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
       }
     } catch (e) {
       setState(() => isLoading = false);
+      print("ERROR DETECTADO: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Error de reproducción: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -93,89 +96,37 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('URBANO 106', style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold, letterSpacing: 2)),
-        centerTitle: true,
-        backgroundColor: Colors.black,
-      ),
       body: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter, colors: [Colors.black, Color(0xFF222222)]
+          )
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.radio_outlined, size: 100, color: Colors.yellow),
-            const SizedBox(height: 30),
-            
-            // Selector de Stream
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.yellow.withOpacity(0.5)),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<Map<String, String>>(
-                  value: currentStream,
-                  isExpanded: true,
-                  dropdownColor: Colors.grey[900],
-                  items: streams.map((s) => DropdownMenuItem(value: s, child: Text(s['label']!))).toList(),
-                  onChanged: (val) async {
-                    if (isPlaying) await _player.stop();
-                    setState(() {
-                      currentStream = val!;
-                      isPlaying = false;
-                    });
-                  },
+            const Text("URBANO 106", style: TextStyle(color: Colors.yellow, fontSize: 30, fontWeight: FontWeight.bold, letterSpacing: 5)),
+            const SizedBox(height: 60),
+            GestureDetector(
+              onTap: _togglePlay,
+              child: Container(
+                width: 150, height: 150,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle, color: Colors.yellow,
+                  boxShadow: [BoxShadow(color: Colors.yellow.withOpacity(0.3), blurRadius: 20)]
+                ),
+                child: Icon(
+                  isLoading ? Icons.hourglass_top : (isPlaying ? Icons.stop : Icons.play_arrow),
+                  size: 80, color: Colors.black,
                 ),
               ),
             ),
-            
-            const SizedBox(height: 10),
-            Text(currentStream['url']!, style: const TextStyle(fontSize: 9, color: Colors.grey)),
-            
-            const SizedBox(height: 50),
-
-            // Botón de Play
-            GestureDetector(
-              onTap: _togglePlay,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.yellow,
-                      boxShadow: [
-                        BoxShadow(color: Colors.yellow.withOpacity(0.3), blurRadius: 20, spreadRadius: 5)
-                      ]
-                    ),
-                    child: Icon(
-                      isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded,
-                      size: 80,
-                      color: Colors.black,
-                    ),
-                  ),
-                  if (isLoading)
-                    const SizedBox(
-                      width: 120,
-                      height: 120,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 5),
-                    ),
-                ],
-              ),
-            ),
-            
             const SizedBox(height: 30),
-            Text(
-              isPlaying ? "REPRODUCIENDO AHORA" : "RADIO PAUSADA",
-              style: TextStyle(
-                color: isPlaying ? Colors.greenAccent : Colors.grey,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2
-              ),
+            Text(isPlaying ? "EN VIVO" : "RADIO PAUSADA", style: const TextStyle(color: Colors.white70)),
+            if (isLoading) const Padding(
+              padding: EdgeInsets.only(top: 20),
+              child: CircularProgressIndicator(color: Colors.yellow),
             ),
           ],
         ),
