@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 
 void main() {
   runApp(const Urbano106App());
@@ -13,10 +13,7 @@ class Urbano106App extends StatelessWidget {
     return MaterialApp(
       title: 'Urbano 106',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark, 
-        scaffoldBackgroundColor: Colors.black,
-      ),
+      theme: ThemeData(brightness: Brightness.dark, scaffoldBackgroundColor: Colors.black),
       home: const RadioPlayerScreen(),
     );
   }
@@ -30,33 +27,26 @@ class RadioPlayerScreen extends StatefulWidget {
 }
 
 class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
-  late AudioPlayer _player;
+  // Cambiamos a AudioPlayer de just_audio
+  final _player = AudioPlayer();
   bool isPlaying = false;
-  bool isLoading = false;
-  
-  // Stream HTTPS de Urbano 106
+
+  // Stream HTTPS (El más seguro para probar)
   final String url = 'https://usa18.fastcast4u.com/proxy/rmoohhrw?mp=/1';
 
   @override
   void initState() {
     super.initState();
-    _player = AudioPlayer();
-    
-    _player.setReleaseMode(ReleaseMode.stop);
-    _player.setPlayerMode(PlayerMode.mediaPlayer);
-    
-    // CORRECCIÓN RADICAL: Eliminamos todos los 'const' internos
-    // Esto evita errores si la versión de la librería cambia los constructores
-    _player.setAudioContext(AudioContext(
-      android: AudioContextAndroid(
-        contentType: AndroidContentType.music,
-        usageType: AndroidUsageType.media,
-        audioFocus: AndroidAudioFocus.gain,
-      ),
-      iOS: AudioContextIOS(
-        category: AVAudioSessionCategory.playback,
-      ),
-    ));
+    _initPlayer();
+  }
+
+  Future<void> _initPlayer() async {
+    try {
+      // Configuramos la fuente del stream
+      await _player.setUrl(url);
+    } catch (e) {
+      debugPrint("Error inicializando el stream: $e");
+    }
   }
 
   @override
@@ -65,29 +55,15 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     super.dispose();
   }
 
-  Future<void> _togglePlay() async {
-    if (isLoading) return;
-    setState(() => isLoading = true);
-
-    try {
-      if (isPlaying) {
-        await _player.stop();
-        setState(() {
-          isPlaying = false;
-          isLoading = false;
-        });
-      } else {
-        await _player.setSource(UrlSource(url));
-        await _player.resume();
-        setState(() {
-          isPlaying = true;
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() => isLoading = false);
-      debugPrint("Error de audio: $e");
+  void _togglePlay() {
+    if (isPlaying) {
+      _player.stop();
+    } else {
+      _player.play();
     }
+    setState(() {
+      isPlaying = !isPlaying;
+    });
   }
 
   @override
@@ -98,7 +74,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
             colors: [Colors.black, Color(0xFF1A1A1A)],
           ),
         ),
@@ -116,53 +91,46 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
             ),
             const SizedBox(height: 100),
             
-            GestureDetector(
-              onTap: _togglePlay,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: 150,
-                    height: 150,
+            // Monitor de estado del buffer
+            StreamBuilder<PlayerState>(
+              stream: _player.playerStateStream,
+              builder: (context, snapshot) {
+                final playerState = snapshot.data;
+                final processingState = playerState?.processingState;
+                final playing = playerState?.playing;
+
+                if (processingState == ProcessingState.loading ||
+                    processingState == ProcessingState.buffering) {
+                  return const SizedBox(
+                    width: 150, height: 150,
+                    child: CircularProgressIndicator(color: Colors.yellow, strokeWidth: 8),
+                  );
+                }
+
+                return GestureDetector(
+                  onTap: _togglePlay,
+                  child: Container(
+                    width: 150, height: 150,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.yellow,
                       boxShadow: [
-                        BoxShadow(
-                          color: Colors.yellow.withOpacity(0.4),
-                          blurRadius: 30,
-                          spreadRadius: 2,
-                        )
+                        BoxShadow(color: Colors.yellow.withOpacity(0.4), blurRadius: 30)
                       ],
                     ),
                     child: Icon(
-                      isPlaying ? Icons.stop_rounded : Icons.play_arrow_rounded,
-                      size: 100,
-                      color: Colors.black,
+                      playing == true ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                      size: 100, color: Colors.black,
                     ),
                   ),
-                  if (isLoading)
-                    const SizedBox(
-                      width: 150,
-                      height: 150,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 8,
-                      ),
-                    ),
-                ],
-              ),
+                );
+              },
             ),
             
             const SizedBox(height: 50),
-            Text(
-              isPlaying ? "AL AIRE" : "RADIO EN PAUSA",
-              style: TextStyle(
-                color: isPlaying ? Colors.yellow : Colors.white24,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-              ),
+            const Text(
+              "AL AIRE",
+              style: TextStyle(color: Colors.yellow, fontWeight: FontWeight.bold),
             ),
           ],
         ),
